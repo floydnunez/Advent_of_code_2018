@@ -1,4 +1,4 @@
-# Advent_of_code_2018
+#AdventOfCode
 
 Mostly done in nim.
 

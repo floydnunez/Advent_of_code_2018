@@ -18,7 +18,7 @@ public class Day_20 {
 	public static final Coord zero = new Coord(0, 0);
 	
 	public static void main(String[] args) throws Exception {
-		String filename = "d20_input.txt";
+		String filename = "d20_input_test11.txt";
 		boolean debug = !filename.equals("d20_input.txt");
 		List<String> allLines = Files.readAllLines(Paths.get(filename));
 		String line = allLines.get(0);
@@ -75,10 +75,10 @@ public class Day_20 {
 		if (debug) {
 			System.out.println(dataStr);
 		}
-		System.out.println("total: " + total + 
-				" max cost: " + max_cost + " from (" + min_x + ", " + min_y + ") to (" + max_x + ", " + max_y+ ") " +
-				" size: (" + width + ", " + height + ") at least 1000? " + at_least_1000  );
 		print_map2(height, width, map);
+		System.out.println("total: " + total + 
+			" max cost: " + max_cost + " from (" + min_x + ", " + min_y + ") to (" + max_x + ", " + max_y+ ") " +
+			" size: (" + width + ", " + height + ") at least 1000? " + at_least_1000  );
 	}
 
 	private static void print_map2(int fheight, int fwidth, List<List<String>> map) {
@@ -175,7 +175,7 @@ public class Day_20 {
 			result = "3";
 		}
 		else if (room.doors.containsKey("N") && room.doors.containsKey("E") && room.doors.containsKey("W") ) {
-			result = "Â±";
+			result = "±";
 		}
 		else if (room.doors.containsKey("N") && room.doors.containsKey("E") && room.doors.containsKey("S") ) {
 			result = "E";
@@ -202,13 +202,13 @@ public class Day_20 {
 			result = "'";
 		}
 		else if (room.doors.containsKey("E") ) {
-			result = "Â»";
+			result = "»";
 		}
 		else if (room.doors.containsKey("S") ) {
 			result = ".";
 		}
 		else if (room.doors.containsKey("W") ) {
-			result = "Â«";
+			result = "«";
 		}
 		return result;
 	}

@@ -81,7 +81,6 @@ proc eqri(data: Line) {.inline.} =
     register[data.c] = if first == second: 1
         else: 0
 
-
 var data_line : Line
 var instructions = newSeq[Line]()
 var ins_pointer: int
@@ -97,7 +96,7 @@ for line in lines file_name:
         instructions.add( data_line ) 
         if (opcode == "mulr" or opcode == "muli") and c == ins_pointer:
             echo "exit condition: ", line, " at ", instructions.len - 1
-        
+
 let ini_time = cpuTime()
 
 var cycles = 0
@@ -108,13 +107,35 @@ while register[ins_pointer] >= 0 and register[ins_pointer] < instructions.len:
     let data = instructions[register[ins_pointer]]
     let opcode = data.opcode
     #hack
-#[
-    if (not hacked) and old_inst == 3 and register[5] == 10551355:
-        register[1] = 5
-        register[3] = 2110271
-        echo "hack: ", register
-        hacked = true
-]#
+    var main_loop_done = false
+    if old_inst == 3:
+        #echo "entering main loop!"
+        while true:
+            #echo register
+            register[4] = register[1] * register[3] #3
+            if register[4] == register[5]: #4
+                register[4] = 1
+                register[0] += register[1]#7
+            else:
+                register[4] = 0 #end 4
+            register[3] += + 1 #8
+            if register[3] > register[5]: #9
+                register[4] = 1
+            else:
+                register[4] = 0 #end 9
+            register[2] += register[2]#10
+            if register[4] == 1: 
+                register[2] = 12 #10
+                #register[1] += 1 #12
+                main_loop_done = true
+                break
+            else:
+                register[2] = 3
+                continue
+            cycles += 8
+    if main_loop_done:
+        continue
+
     if opcode == "bori": bori(data)
     if opcode == "muli": muli(data)
     if opcode == "banr": banr(data)
@@ -132,7 +153,8 @@ while register[ins_pointer] >= 0 and register[ins_pointer] < instructions.len:
     if opcode == "mulr": mulr(data)
     if opcode == "gtri": gtri(data)
 #    if register[ins_pointer] == 16 or cycles %% 10000000 == 0:
-    #if cycles %% 10000000 == 0:   
+    if cycles %% 10000 == 0:   
+        echo register, " at ", cycles
     #if cycles > 7299900:
     #echo $old_inst, " : ", data, "   \t ", old_register, " -> ", register, " next instruction: ", register[ins_pointer] + 1, " cycles: ", cycles
     register[ins_pointer] += 1

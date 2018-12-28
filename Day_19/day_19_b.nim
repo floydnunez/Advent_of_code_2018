@@ -5,7 +5,7 @@ type Line = object
     opcode: string
     a, b, c: int
 
-var register = @[0,0,0,0,0,0]
+var register = @[1,0,0,0,0,0]
 
 proc addr(data: Line) {.inline.} =
     let temp = register[data.a] + register[data.b]
@@ -111,28 +111,40 @@ while register[ins_pointer] >= 0 and register[ins_pointer] < instructions.len:
     if old_inst == 3:
         #echo "entering main loop!"
         while true:
+            if cycles %% 500_000_000 == 0:
+                echo register, " at ", cycles
+            cycles += 1
             #echo register
             register[4] = register[1] * register[3] #3
             if register[4] == register[5]: #4
                 register[4] = 1
-                register[0] += register[1]#7
+                register[0] += register[1] #7
             else:
                 register[4] = 0 #end 4
-            register[3] += + 1 #8
+            register[3] += 1 #8
             if register[3] > register[5]: #9
                 register[4] = 1
             else:
                 register[4] = 0 #end 9
-            register[2] += register[2]#10
+                register[2] = 3 #11 (it's actually 2, but it adds 1 to it at the end of every "real" loop)
+                continue
             if register[4] == 1: 
                 register[2] = 12 #10
-                #register[1] += 1 #12
-                main_loop_done = true
-                break
-            else:
-                register[2] = 3
-                continue
-            cycles += 8
+                register[1] += 1 #12
+                if register[1] > register[5]: #13 #end condition!!!
+                    register[4] = 1
+                    register[2] = 15 + 1 #14
+                    register[2] *= register[2] #16
+                    register[2] += 1 #end of loop when it ends
+                    echo "END: ", register, " at ", cycles
+                    quit(0)
+                else:
+                    register[4] = 0
+                    #14 does nothing in this case
+                    register[2] = 3 #was 1, but adds 1 for that instruction and instruction 2
+                    register[3] = 1 #2. Loops
+
+    
     if main_loop_done:
         continue
 
@@ -156,7 +168,7 @@ while register[ins_pointer] >= 0 and register[ins_pointer] < instructions.len:
     if cycles %% 10000 == 0:   
         echo register, " at ", cycles
     #if cycles > 7299900:
-    #echo $old_inst, " : ", data, "   \t ", old_register, " -> ", register, " next instruction: ", register[ins_pointer] + 1, " cycles: ", cycles
+    echo $old_inst, " : ", data, "   \t ", old_register, " -> ", register, " next instruction: ", register[ins_pointer] + 1, " cycles: ", cycles
     register[ins_pointer] += 1
     cycles += 1
 #    if cycles > 1000000:

@@ -28,7 +28,7 @@ var last_schedule: Schedule
 var all_schedules = initOrderedTable[int,Schedule]()
 
 for line in lines file_name:
-    echo line
+    #echo line
     var year, month, day, hour, minute, id: int
     if scanf(line, "[$i-$i-$i $i:$i] Guard #$i begins shift", year, month, day, hour, minute, id):
         if all_schedules.contains(id):
@@ -36,16 +36,16 @@ for line in lines file_name:
         else:
             last_schedule = new_schedule(id, day, month)
             all_schedules[id] = last_schedule
-        echo "guard #", id, " begins shift!"
+        #echo "guard #", id, " begins shift!"
     if scanf(line, "[$i-$i-$i $i:$i] falls asleep", year, month, day, hour, minute):
         last_schedule.wake_sleep_list.add(Wake_Sleep(sleeping: true, minute: minute, month: month, day: day))    
-        echo "guard #", last_schedule.id, " falls asleep"
+        #echo "guard #", last_schedule.id, " falls asleep"
     if scanf(line, "[$i-$i-$i $i:$i] wakes up", year, month, day, hour, minute):
         last_schedule.wake_sleep_list.add(Wake_Sleep(sleeping: false, minute: minute, month: month, day: day))   
-        echo "guard #", last_schedule.id, " wakes up "
+        #echo "guard #", last_schedule.id, " wakes up "
         
 
-echo "\n\n\n"
+#echo "\n\n\n"
 
 func calc_value(x: Wake_Sleep): int =
     let sleep_val = if x.sleeping:
@@ -64,22 +64,22 @@ func new_day_sleep_schedule(): seq[bool] =
 
 for id, sche in all_schedules.pairs:
     var list = sche.wake_sleep_list
-    echo "sche: ", sche.wake_sleep_list.len
+    #echo "sche: ", sche.wake_sleep_list.len
     sort[Wake_Sleep](list, sort_wake_sleep)
     var sleeps_per_day = initOrderedTable[string, seq[bool]]()
     for ws in list:
-        echo "Guard #", sche.id, " sleeps: ", ws.sleeping, " the ", ws.month, "-", ws.day, " at ", ws.minute, " val: ", ws.calc_value()
+        #echo "Guard #", sche.id, " sleeps: ", ws.sleeping, " the ", ws.month, "-", ws.day, " at ", ws.minute, " val: ", ws.calc_value()
         let day_val = $ws.month & "-" & $ws.day
         var sleep_for_the_day = if sleeps_per_day.contains(day_val):
             sleeps_per_day[day_val]
         else:
             new_day_sleep_schedule()
         if ws.sleeping: 
-            echo "sleeping: ", $sche.id, " at ", ws.month, "-", ws.day, " : ", ws.minute, " to ", sleep_for_the_day.high
+            #echo "sleeping: ", $sche.id, " at ", ws.month, "-", ws.day, " : ", ws.minute, " to ", sleep_for_the_day.high
             for minute_of_sleep in ws.minute..sleep_for_the_day.high:
                 sleep_for_the_day[minute_of_sleep] = true
         else:
-            echo "waking  : ", $sche.id, " at ", ws.month, "-", ws.day, " : ", ws.minute, " to ", sleep_for_the_day.high
+            #echo "waking  : ", $sche.id, " at ", ws.month, "-", ws.day, " : ", ws.minute, " to ", sleep_for_the_day.high
             for minute_of_sleep in ws.minute..sleep_for_the_day.high:
                 sleep_for_the_day[minute_of_sleep] = false
         sleeps_per_day[day_val] = sleep_for_the_day

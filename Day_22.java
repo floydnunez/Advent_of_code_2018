@@ -1,509 +1,601 @@
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+import edu.stanford.nlp.util.FixedPrioritiesPriorityQueue;
+import edu.stanford.nlp.util.PriorityQueue;
 
 public class Day_22 {
+    // 1122, 1095, 1094, 974
+    private static final boolean test = false;
 
-	public static int width, height, target_x, target_y, depth;
+    private static final int CHANGE_COST = 7;
 
-	public static long iterations = 0;
+    public static int width, height, target_x, target_y, depth;
 
-	public static final long _20183 = 20183l;
-	public static final long _16807 = 16807l;
-	public static final long _48271 = 48271l;
-	public static final long _3 = 3l;
-	public static final double margin = 2;
-	public static long _depth;
-	public static final String allowed_a = "|";
-	public static final String allowed_b = "=";
+    public static long iterations = 0;
 
-	public static final String allowed_c = ".";
-	public static final String allowed_d = "|";
+    public static final long _20183 = 20183l;
+    public static final long _16807 = 16807l;
+    public static final long _48271 = 48271l;
+    public static final long _3 = 3l;
+    public static final double margin_x = 2.25;
+    public static double margin_y = 1.01;
+    public static long _depth;
+    public static final String allowed_a = "|";
+    public static final String allowed_b = "=";
 
-	public static void main(String[] args) throws Exception {
-		boolean test = false;
-		if (test) {
-			target_x = 5;
-			target_y = 5;
-			depth = 510;
+    public static final String allowed_c = ".";
+    public static final String allowed_d = "|";
+
+    public static void main(String[] args) throws Exception {
+	if (test) {
+	    target_x = 10;
+	    target_y = 10;
+	    depth = 510;
+	    margin_y = 1.4;
+	} else {
+	    target_x = 13;
+	    target_y = 734;
+	    depth = 7305;
+	}
+	_depth = (long) depth;
+	width = (int) ((target_x + 1) * margin_x);
+	height = (int) ((target_y + 1) * margin_y);
+	System.out.println("depth: " + depth + " target in (" + width + ", " + height + ")");
+
+	List<List<Square>> map_torch = new ArrayList<List<Square>>();
+	// basic rules first
+	for (int yndex = 0; yndex < height; yndex++) {
+	    map_torch.add(new ArrayList<Square>());
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square Square = new Square(xndex, yndex, TOOL.TORCH);
+		apply_basic_rules(Square, xndex, yndex);
+		map_torch.get(yndex).add(Square);
+	    }
+	}
+	// multiply complex rule
+	for (int yndex = 1; yndex < height; yndex++) {
+	    List<Square> row = map_torch.get(yndex);
+	    for (int xndex = 1; xndex < width; xndex++) {
+		Square square = row.get(xndex);
+		boolean advanced = false;
+		if (xndex != target_x || yndex != target_y) {
+		    Square prev = row.get(xndex - 1);
+		    Square above = map_torch.get(yndex - 1).get(xndex);
+		    square.geoIndex = prev.erosionLevel * above.erosionLevel;
+		    square.erosionLevel = (square.geoIndex + _depth) % _20183;
+		    advanced = true;
+		}
+	    }
+	}
+	int above_y = target_y - 1;
+	int prev_x = target_x - 1;
+	System.out.println(
+		"above: (" + target_x + ", " + above_y + ") = " + map_torch.get(above_y).get(target_x).erosionLevel);
+	System.out.println(
+		"prev : (" + prev_x + ", " + target_y + ") = " + map_torch.get(target_y).get(prev_x).erosionLevel);
+	// apply rules
+	for (int yndex = 0; yndex < height; yndex++) {
+	    List<Square> row = map_torch.get(yndex);
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square square = row.get(xndex);
+		long decision = square.erosionLevel % 3;
+		if (decision == 0) {
+		    square.type = ".";
+		} else if (decision == 1) {
+		    square.type = "=";
+		} else if (decision == 2) {
+		    square.type = "|";
+		}
+	    }
+	}
+
+	print_map(map_torch);
+	int risk = calc_risk_levels(map_torch);
+	Square from = map_torch.get(0).get(0);
+	Square to = map_torch.get(target_y).get(target_x);
+	System.out.println("risk: " + risk);
+	List<List<Square>> map_climb = copy_map(map_torch, TOOL.CLIMB);
+	List<List<Square>> map_neither = copy_map(map_torch, TOOL.NEITHER);
+	System.out.println("pre flood fill");
+	flood_fill(map_torch, map_climb, map_neither, from, to);
+	System.out.println("calc path");
+	 calc_path(map_torch, map_climb, map_neither, from, to);
+	// print_map_flood(map_torch, map_climb, map_neither);
+	print_path(map_torch, map_climb, map_neither);
+	System.out.println("to: " + to);
+	System.out.println("to torch: " + map_torch.get(target_y - 1).get(target_x));
+	System.out.println("to torch: " + map_torch.get(target_y + 1).get(target_x));
+	System.out.println("to torch: " + map_torch.get(target_y).get(target_x - 1));
+	System.out.println("to torch: " + map_torch.get(target_y).get(target_x + 1));
+	System.out.println("climb: ");
+	System.out.println("to climb: " + map_climb.get(target_y).get(target_x));
+	System.out.println("to climb: " + map_climb.get(target_y - 1).get(target_x));
+	System.out.println("to climb: " + map_climb.get(target_y + 1).get(target_x));
+	System.out.println("to climb: " + map_climb.get(target_y).get(target_x - 1));
+	System.out.println("to climb: " + map_climb.get(target_y).get(target_x + 1));
+	System.out.println("neither: ");
+	System.out.println("to neither: " + map_neither.get(target_y).get(target_x));
+	System.out.println("to neither: " + map_neither.get(target_y - 1).get(target_x));
+	System.out.println("to neither: " + map_neither.get(target_y + 1).get(target_x));
+	System.out.println("to neither: " + map_neither.get(target_y).get(target_x - 1));
+	System.out.println("to neither: " + map_neither.get(target_y).get(target_x + 1));
+    }
+
+    private static void calc_path(List<List<Square>> map_torch, List<List<Square>> map_climb,
+	    List<List<Square>> map_neither, Square from, Square to) {
+	Square current = to;
+	to.path = "X";
+	while (true) {
+	    List<Square> candidates = back_path_candidates(map_torch, map_climb, map_neither, current);
+	    int min_cost = 9999999;
+	    Square best_square = null;
+	    for (Square cand : candidates) {
+		if (cand.cost < min_cost) {
+		    min_cost = cand.cost;
+		    best_square = cand;
+		}
+	    }
+	    best_square.path = "X";
+	    current = best_square;
+	    if (current.x == 0 && current.y == 0) {
+		return;
+	    }
+	}
+    }
+
+    private static List<Square> back_path_candidates(List<List<Square>> map_torch, List<List<Square>> map_climb,
+	    List<List<Square>> map_neither, Square last) {
+	List<Square> result = new ArrayList<Square>();
+	List<List<Square>> map = null;
+	if (last.tool == TOOL.TORCH) {
+	    map = map_torch;
+	} else if (last.tool == TOOL.CLIMB) {
+	    map = map_climb;
+	} else if (last.tool == TOOL.NEITHER) {
+	    map = map_neither;
+	} else {
+	    System.exit(1);
+	}
+	if (last.y > 0) {
+	    Square square = map.get(last.y - 1).get(last.x);
+	    if (square.cost != -1 && square.isPossible()) {
+		result.add(square);
+	    }
+	}
+	// bottom
+	if (last.y < height - 1) {
+	    Square square = map.get(last.y + 1).get(last.x);
+	    if (square.cost != -1 && square.isPossible()) {
+		result.add(square);
+	    }
+	}
+	// left
+	if (last.x > 0) {
+	    Square square = map.get(last.y).get(last.x - 1);
+	    if (square.cost != -1 && square.isPossible()) {
+		result.add(square);
+	    }
+	}
+	// right
+	if (last.x < width - 1) {
+	    Square square = map.get(last.y).get(last.x + 1);
+	    if (square.cost != -1 && square.isPossible()) {
+		result.add(square);
+	    }
+	}
+	Square to_torch = map_torch.get(last.y).get(last.x);
+	Square to_climb = map_climb.get(last.y).get(last.x);
+	Square to_neither = map_neither.get(last.y).get(last.x);
+	if (last.tool == TOOL.TORCH) {
+	    if (to_climb.isPossible() && to_climb.cost != -1) {
+		result.add(to_climb);
+	    }
+	    if (to_neither.isPossible() && to_neither.cost != -1) {
+		result.add(to_neither);
+	    }
+	} else if (last.tool == TOOL.CLIMB) {
+	    if (to_torch.isPossible() && to_torch.cost != -1) {
+		result.add(to_torch);
+	    }
+	    if (to_neither.isPossible() && to_neither.cost != -1) {
+		result.add(to_neither);
+	    }
+	} else if (last.tool == TOOL.NEITHER) {
+	    if (to_torch.isPossible() && to_torch.cost != -1) {
+		result.add(to_torch);
+	    }
+	    if (to_climb.isPossible() && to_climb.cost != -1) {
+		result.add(to_climb);
+	    }
+	}
+	return result;
+    }
+
+    private static List<List<Square>> copy_map(List<List<Square>> map_orig, int tool) {
+	List<List<Square>> result = new ArrayList<List<Square>>();
+	for (int yndex = 0; yndex < height; yndex++) {
+	    List<Square> fila = new ArrayList<Square>();
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square old = map_orig.get(yndex).get(xndex);
+		Square sq = new Square(old.x, old.y, tool);
+		sq.type = old.type;
+		fila.add(sq);
+	    }
+	    result.add(fila);
+	}
+	return result;
+    }
+
+    private static void print_map_flood(List<List<Square>> map_torch, List<List<Square>> map_climb,
+	    List<List<Square>> map_neither) {
+	for (int yndex = 0; yndex < height; yndex++) {
+	    String line = "";
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square sq = map_torch.get(yndex).get(xndex);
+		line = add_line_by_cost(line, sq);
+	    }
+	    line += "   ";
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square sq = map_climb.get(yndex).get(xndex);
+		line = add_line_by_cost(line, sq);
+	    }
+	    line += "   ";
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square sq = map_neither.get(yndex).get(xndex);
+		line = add_line_by_cost(line, sq);
+	    }
+	    System.out.println(line);
+	}
+	System.out.println("\n");
+    }
+
+    private static void print_path(List<List<Square>> map_torch, List<List<Square>> map_climb,
+	    List<List<Square>> map_neither) {
+	for (int yndex = 0; yndex < height; yndex++) {
+	    String line = "";
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square t = map_torch.get(yndex).get(xndex);
+		Square c = map_climb.get(yndex).get(xndex);
+		Square n = map_neither.get(yndex).get(xndex);
+		int paths = 0;
+		if (!" ".equals(t.path)) {
+		    paths += 1;
+		}
+		if (!" ".equals(c.path)) {
+		    paths += 1;
+		}
+		if (!" ".equals(n.path)) {
+		    paths += 1;
+		}
+		if (paths > 1) {
+		    line += "%";
+		} else if (paths == 1) {
+		    line += "X";
 		} else {
-			target_x = 13;
-			target_y = 734;
-			depth = 7305;
+		    line += t.type;
 		}
-		_depth = (long) depth;
-		width = (int) ((target_x + 1) * margin);
-		height = (int) ((target_y + 1) * margin);
-		System.out.println("depth: " + depth + " target in (" + width + ", " + height + ")");
-
-		List<List<Square>> map = new ArrayList<List<Square>>();
-		// basic rules first
-		for (int yndex = 0; yndex < height; yndex++) {
-			map.add(new ArrayList<Square>());
-			for (int xndex = 0; xndex < width; xndex++) {
-				Square Square = new Square(xndex, yndex);
-				apply_basic_rules(Square, xndex, yndex);
-				map.get(yndex).add(Square);
-			}
-		}
-		// multiply complex rule
-		for (int yndex = 1; yndex < height; yndex++) {
-			List<Square> row = map.get(yndex);
-			for (int xndex = 1; xndex < width; xndex++) {
-				Square square = row.get(xndex);
-				boolean advanced = false;
-				if (xndex != target_x || yndex != target_y) {
-					Square prev = row.get(xndex - 1);
-					Square above = map.get(yndex - 1).get(xndex);
-					square.geoIndex = prev.erosionLevel * above.erosionLevel;
-					square.erosionLevel = (square.geoIndex + _depth) % _20183;
-					advanced = true;
-				}
-			}
-		}
-		int above_y = target_y - 1;
-		int prev_x = target_x - 1;
-		System.out
-				.println("above: (" + target_x + ", " + above_y + ") = " + map.get(above_y).get(target_x).erosionLevel);
-		System.out.println("prev : (" + prev_x + ", " + target_y + ") = " + map.get(target_y).get(prev_x).erosionLevel);
-		// apply rules
-		for (int yndex = 0; yndex < height; yndex++) {
-			List<Square> row = map.get(yndex);
-			for (int xndex = 0; xndex < width; xndex++) {
-				Square square = row.get(xndex);
-				long decision = square.erosionLevel % 3;
-				if (decision == 0) {
-					square.type = ".";
-				} else if (decision == 1) {
-					square.type = "=";
-				} else if (decision == 2) {
-					square.type = "|";
-				}
-			}
-		}
-
-		print_map(map);
-		int risk = calc_risk_levels(map);
-		// List<ListSet> all_paths = generate_all_paths(map);
-		// print_all_paths(all_paths);
-		// int minimum_traversal = go_through_all(all_paths);
-		Square from = map.get(0).get(0);
-		Square to = map.get(target_y).get(target_x);
-		flood_fill(map, allowed_a, allowed_b, to, from);
-		print_map_flood(map);
-		Square max = get_max_cost(map);
-		if (to.equals(max)) {
-			System.out.println("success! cost: " + max.cost);
+	    }
+	    line += "   ";
+	    for (int xndex = 0; xndex < width; xndex++) {
+		Square t = map_torch.get(yndex).get(xndex);
+		if (xndex == 0 && yndex == 0) {
+		    line += "M";
+		} else if (xndex == target_x && yndex == target_y) {
+		    line += "T";
 		} else {
-			System.out.println("failure, no valid route :( max: " + max);
+		    line += t.type;
 		}
-		reset_map(map);
-		System.out.println("switch--------------");
-		Square mid = find_closest_to(map, from);
-		flood_fill(map, allowed_c, allowed_c, from, mid);
-		print_map_flood(map);
-		System.out.println("find mid: " + mid);
-		System.out.println("risk = " + risk);
-		// System.out.println("all existing paths: " + all_paths.size());
-		// System.out.println("min traversal: " + minimum_traversal);
+	    }
+	    System.out.println(line);
 	}
+	System.out.println("\n");
+    }
 
-	private static void reset_map(List<List<Square>> map) {
-		for (int yndex = 0; yndex < height; yndex++) {
-			for (int xndex = 0; xndex < width; xndex++) {
-				Square sq = map.get(yndex).get(xndex);
-				sq.cost = -1;
-			}
-		}
+    private static String add_line_by_cost(String line, Square sq) {
+	if (sq.x == 0 && sq.y == 0) {
+	    line += "M";
+	} else if (sq.x == target_x && sq.y == target_y) {
+	    line += "T";
+	} else if (!sq.path.equals(" ")) {
+	    line += sq.path;
+	} else if (sq.cost == -1) {
+	    line += " ";
+	} else if (sq.cost < 3) {
+	    line += ".";
+	} else if (sq.cost < 9) {
+	    line += ":";
+	} else if (sq.cost < 18) {
+	    line += "+";
+	} else if (sq.cost < 28) {
+	    line += "n";
+	} else if (sq.cost < 42) {
+	    line += "m";
+	} else {
+	    line += "#";
 	}
+	return line;
+    }
 
-	private static void print_map_flood(List<List<Square>> map) {
-		for (int yndex = 0; yndex < height; yndex++) {
-			String line = "";
-			for (int xndex = 0; xndex < width; xndex++) {
-				Square sq = map.get(yndex).get(xndex);
-				if (sq.cost == -1) {
-					line += " ";
-				} else if (sq.cost < 5) {
-					line += ".";
-				} else if (sq.cost < 20) {
-					line += ":";
-				} else if (sq.cost < 50) {
-					line += "+";
-				} else if (sq.cost < 100) {
-					line += "n";
-				} else if (sq.cost < 250) {
-					line += "m";
-				}
-			}
-			System.out.println(line);
+    private static void flood_fill(List<List<Square>> map_torch, List<List<Square>> map_climb,
+	    List<List<Square>> map_neither, Square from, Square to) {
+	List<Square> current_squares = new ArrayList<Square>();
+	current_squares.add(from);
+
+	from.cost = 0;
+
+	while (!current_squares.isEmpty()) {
+	    List<Square> candidates = new ArrayList<Square>();
+	    PriorityQueue<Square> adjacents = new FixedPrioritiesPriorityQueue<Square>();
+	    for (Square square : current_squares) {
+		PriorityQueue<Square> this_adjacents = get_adjacent(map_torch, map_climb, map_neither, square.x,
+			square.y, square.tool, square.cost);
+		join_priority_queue(adjacents, this_adjacents);
+	    }
+	    while (!adjacents.isEmpty()) {
+		int priority = (int) - adjacents.getPriority();
+		Square square = adjacents.removeFirst();
+		if (square.cost == -1 && square.isPossible()) {
+		    if (square.x == target_x && square.y == target_y && square.tool == TOOL.TORCH) {
+			System.out.println("\n\n\nGOT TO THE EXIT: " + square + " p= " + -priority);
+		    }
+		    square.cost = priority; // do note the negative!
+		    candidates.add(square);
+		} else if (square.isPossible() && priority < square.cost) {
+		    square.cost = priority;
+		    candidates.add(square);
 		}
-		System.out.println("\n");
+	    }
+	    current_squares = candidates;
 	}
+    }
 
-	private static Square find_closest_to(List<List<Square>> map, Square from) {
-		Square sq = null;
-		int min_cost = 9999999;
-		for (int yndex = 0; yndex < height; yndex++) {
-			for (int xndex = 0; xndex < width; xndex++) {
-				Square this_square = map.get(yndex).get(xndex);
-				if (min_cost > this_square.cost && this_square.cost > -1) {
-					min_cost = this_square.cost;
-					sq = this_square;
-				}
-			}
-		}
-		return sq;
+    private static void join_priority_queue(PriorityQueue<Square> big_queue, PriorityQueue<Square> small_queue) {
+	while (!small_queue.isEmpty()) {
+	    int priority = (int) small_queue.getPriority();
+	    Square square = small_queue.removeFirst();
+	    big_queue.add(square, priority);
 	}
+    }
 
-	private static Square get_max_cost(List<List<Square>> map) {
-		int max_cost = 0;
-		Square max_sq = null;
-		for (int yndex = 0; yndex < height; yndex++) {
-			for (int xndex = 0; xndex < width; xndex++) {
-				Square sq = map.get(yndex).get(xndex);
-				if (max_cost < sq.cost) {
-					max_cost = sq.cost;
-					max_sq = sq;
-				}
-			}
-		}
-		return max_sq;
+    private static PriorityQueue<Square> get_adjacent(List<List<Square>> map_torch, List<List<Square>> map_climb,
+	    List<List<Square>> map_neither, int x, int y, int tool, int cost) {
+	PriorityQueue<Square> result = new FixedPrioritiesPriorityQueue<Square>();
+
+	List<List<Square>> map = null;
+	if (tool == TOOL.TORCH) {
+	    map = map_torch;
+	} else if (tool == TOOL.CLIMB) {
+	    map = map_climb;
+	} else if (tool == TOOL.NEITHER) {
+	    map = map_neither;
+	} else {
+	    System.exit(1);
 	}
-
-	private static void flood_fill(List<List<Square>> map, String allowed1, String allowed2, Square from, Square to) {
-		Square origin = from;
-		List<Square> current_squares = new ArrayList<Square>();
-		current_squares.add(origin);
-		int current_value = 0;
-		while (!current_squares.isEmpty()) {
-			for (Square square : current_squares) {
-				if (square.cost == -1) {
-					square.cost = current_value;
-				}
-			}
-			current_value++;
-			List<Square> candidates = new ArrayList<Square>();
-			for (Square square : current_squares) {
-				List<Square> adjacents = get_adjacent(map, square, allowed1, allowed2);
-				for (Square candidate : adjacents) {
-					if (candidate.equals(to)) {
-						candidate.cost = current_value;
-						return;
-					}
-					candidates.add(candidate);
-				}
-			}
-			current_squares = candidates;
-		}
+	int margin = 1;
+	// top
+	if (y > 0) {
+	    Square square = map.get(y - 1).get(x);
+	    if (square.isPossible() && square.cost == -1) {
+		result.add(square, -1 - cost);
+	    } else if (square.isPossible() && square.cost > -1 && square.cost > cost && cost > -1) {
+		result.add(square, -1 - cost);
+//		square.cost = cost + margin; // reset!
+	    }
 	}
-
-	private static List<Square> get_adjacent(List<List<Square>> map, Square last, String allowed1, String allowed2) {
-		List<Square> result = new ArrayList<Square>();
-		// top
-		if (last.y > 0) {
-			Square square = map.get(last.y - 1).get(last.x);
-			if (square.type.equals(allowed1) || square.type.equals(allowed2)) {
-				if (square.cost == -1) {
-					result.add(square);
-				}
-			}
-		}
-		// bottom
-		if (last.y < height - 1) {
-			Square square = map.get(last.y + 1).get(last.x);
-			if (square.type.equals(allowed1) || square.type.equals(allowed2)) {
-				if (square.cost == -1) {
-					result.add(square);
-				}
-			}
-		}
-		// left
-		if (last.x > 0) {
-			Square square = map.get(last.y).get(last.x - 1);
-			if (square.type.equals(allowed1) || square.type.equals(allowed2)) {
-				if (square.cost == -1) {
-					result.add(square);
-				}
-			}
-		}
-		// right
-		if (last.x < width - 1) {
-			Square square = map.get(last.y).get(last.x + 1);
-			if (square.type.equals(allowed1) || square.type.equals(allowed2)) {
-				if (square.cost == -1) {
-					result.add(square);
-				}
-			}
-		}
-		return result;
+	// bottom
+	if (y < height - 1) {
+	    Square square = map.get(y + 1).get(x);
+	    if (square.isPossible() && square.cost == -1) {
+		result.add(square, -1 - cost);
+	    } else if (square.isPossible() && square.cost > -1 && square.cost > cost && cost > -1) {
+		result.add(square, -1 - cost);
+//		square.cost = cost + margin; // reset!
+	    }
 	}
-
-	private static void print_all_paths(List<ListSet> all_paths) {
-		for (ListSet path : all_paths) {
-			for (int yndex = 0; yndex < height; yndex++) {
-				String line = "";
-				for (int xndex = 0; xndex < width; xndex++) {
-					Coord coord = new Coord(xndex, yndex);
-					if (path.poss.containsKey(coord)) {
-						int position = path.poss.get(coord);
-						line += position;
-					} else {
-						line += " ";
-					}
-				}
-				System.out.println(line);
-			}
-			System.out.println("finished: " + path.finished + " - valid? " + path.valid);
-		}
+	// left
+	if (x > 0) {
+	    Square square = map.get(y).get(x - 1);
+	    if (square.isPossible() && square.cost == -1) {
+		result.add(square, -1 - cost);
+	    } else if (square.isPossible() && square.cost > -1 && square.cost > cost && cost > -1) {
+		result.add(square, -1 - cost);
+//		square.cost = cost + margin; // reset!
+	    }
 	}
-
-	private static int go_through_all(List<ListSet> all_paths) {
-		return 0;
+	// right
+	if (x < width - 1) {
+	    Square square = map.get(y).get(x + 1);
+	    if (square.isPossible() && square.cost == -1) {
+		result.add(square, -1 - cost);
+	    } else if (square.isPossible() && square.cost > -1 && square.cost > cost && cost > -1) {
+		result.add(square, -1 - cost);
+//		square.cost = cost + margin; // reset!
+	    }
 	}
+	Square to_torch = map_torch.get(y).get(x);
+	Square to_climb = map_climb.get(y).get(x);
+	Square to_neither = map_neither.get(y).get(x);
 
-	private static List<ListSet> generate_all_paths(List<List<Square>> map) {
-		List<ListSet> all_paths = new ArrayList<ListSet>();
-		Square from = map.get(0).get(0);
-		Square to = map.get(target_y).get(target_x);
+	margin = 7;
 
-		Square current = from;
-		ListSet first_path = new ListSet();
-		first_path.add(current);
-		all_paths.add(first_path);
-		while (true) {
-			List<ListSet> next_paths = step_one(map, all_paths, to);
-			all_paths = next_paths;
-			if (all_finished(next_paths)) {
-				break;
-			}
-		}
-
-		return all_paths;
+	if (tool == TOOL.TORCH) {
+	    if (to_climb.isPossible() && to_climb.cost == -1) {
+		result.add(to_climb, -CHANGE_COST - cost);
+	    } else if (to_climb.isPossible() && to_climb.cost > -1 && to_climb.cost > cost + margin && cost > -1) {
+		System.out.println("NANI 5? " + to_climb + " nc: " + cost);
+		result.add(to_climb, - margin - cost);
+//		to_climb.cost = cost + margin; // reset!
+	    }
+	    if (to_neither.isPossible() && to_neither.cost == -1) {
+		result.add(to_neither, -CHANGE_COST - cost);
+	    } else if (to_neither.isPossible() && to_neither.cost > -1 && to_neither.cost > cost + margin && cost > -1) {
+		System.out.println("NANI 6? " + to_neither + " nc: " + cost);
+		result.add(to_neither, - margin - cost);
+//		to_neither.cost = cost + margin; // reset!	    
+	    }
+	} else if (tool == TOOL.CLIMB) {
+	    if (to_torch.isPossible() && to_torch.cost == -1) {
+		result.add(to_torch, -CHANGE_COST - cost);
+	    } else if (to_torch.isPossible() && to_torch.cost > -1 && to_torch.cost > cost + margin && cost > -1) {
+		System.out.println("NANI 7? " + to_torch + " nc: " + cost);
+		result.add(to_torch, - margin - cost);
+//		to_torch.cost = cost + margin; // reset!
+	    }
+	    if (to_neither.isPossible() && to_neither.cost == -1) {
+		result.add(to_neither, -CHANGE_COST - cost);
+	    } else if (to_neither.isPossible() && to_neither.cost > -1 && to_neither.cost > cost + margin && cost > -1) {
+		System.out.println("NANI 8? " + to_neither + " nc: " + cost);
+		result.add(to_neither, - margin - cost);
+//		to_neither.cost = cost + margin; // reset!
+	    }
+	} else if (tool == TOOL.NEITHER) {
+	    if (to_torch.isPossible() && to_torch.cost == -1) {
+		result.add(to_torch, -CHANGE_COST - cost);
+	    } else if (to_torch.isPossible() && to_torch.cost > -1 && to_torch.cost > cost + margin && cost > -1) {
+		System.out.println("NANI 9? " + to_torch + " nc: " + cost);
+		result.add(to_torch, - margin - cost);
+//		to_torch.cost = cost + margin; // reset!
+	    }
+	    if (to_climb.isPossible() && to_climb.cost == -1) {
+		result.add(to_climb, -CHANGE_COST - cost);
+	    } else if (to_climb.isPossible() && to_climb.cost > -1 && to_climb.cost > cost + margin && cost > -1) {
+		System.out.println("NANI 10? " + to_climb + " nc: " + cost);
+		result.add(to_climb, - margin - cost);
+//		to_climb.cost = cost + margin; // reset!
+	    }
 	}
+	return result;
+    }
 
-	private static boolean all_finished(List<ListSet> next_paths) {
-		boolean all_finished = true;
-		for (ListSet path : next_paths) {
-			if (path.valid && !path.finished) {
-				all_finished = false;
-			}
+    private static int calc_risk_levels(List<List<Square>> map) {
+	int total = 0;
+	for (int yndex = 0; yndex < target_y + 1; yndex++) {
+	    List<Square> row = map.get(yndex);
+	    for (int xndex = 0; xndex < target_x + 1; xndex++) {
+		Square square = row.get(xndex);
+		if (square.type.equals(".")) {
+		    total += 0;
+		} else if (square.type.equals("=")) {
+		    total += 1;
+		} else if (square.type.equals("|")) {
+		    total += 2;
 		}
-		return all_finished;
+	    }
 	}
+	return total;
+    }
 
-	private static List<ListSet> step_one(List<List<Square>> map, List<ListSet> all_paths, Square destiny) {
-		List<ListSet> result = new ArrayList<ListSet>();
-		for (ListSet path : all_paths) {
-			if (path.valid && !path.finished) {
-				iterations++;
-				if (iterations % 100 == 0) {
-					System.out.println("iterations: " + iterations);
-				}
-				Square last = path.last();
-				List<Square> next_ones = get_all_next_squares(map, path, last);
-				for (Square next : next_ones) {
-					// check we haven't traversed these
-					if (!path.has(next)) {
-						ListSet next_path = copy_path(path);
-						next_path.add(next);
-						// did we arrive to the finish?
-						if (next.equals(destiny)) {
-							next_path.finished = true;
-						}
-						result.add(next_path);
-					}
-				}
-				if (next_ones.isEmpty()) {
-					path.valid = false;
-					// gotta keep this one
-					result.add(path);
-				}
-			} else {
-				// we gotta keep the invalid paths and the finished ones
-				result.add(path);
-			}
-		}
-		return result;
-	}
-
-	private static ListSet copy_path(ListSet path) {
-		ListSet result = new ListSet();
-		for (Square square : path.list) {
-			result.add(square);
-		}
-		return result;
-	}
-
-	private static List<Square> get_all_next_squares(List<List<Square>> map, ListSet path, Square last) {
-		List<Square> result = new ArrayList<Square>();
-		// top
-		if (last.y > 0) {
-			Square square = map.get(last.y - 1).get(last.x);
-			if (!path.has(square)) {
-				result.add(square);
-			}
-		}
-		// bottom
-		if (last.y < height - 1) {
-			Square square = map.get(last.y + 1).get(last.x);
-			if (!path.has(square)) {
-				result.add(square);
-			}
-		}
-		// left
-		if (last.x > 0) {
-			Square square = map.get(last.y).get(last.x - 1);
-			if (!path.has(square)) {
-				result.add(square);
-			}
-		}
-		// right
-		if (last.x < width - 1) {
-			Square square = map.get(last.y).get(last.x + 1);
-			if (!path.has(square)) {
-				result.add(square);
-			}
-		}
-		return result;
-	}
-
-	private static int calc_risk_levels(List<List<Square>> map) {
-		int total = 0;
-		for (int yndex = 0; yndex < target_y + 1; yndex++) {
-			List<Square> row = map.get(yndex);
-			for (int xndex = 0; xndex < target_x + 1; xndex++) {
-				Square square = row.get(xndex);
-				if (square.type.equals(".")) {
-					total += 0;
-				} else if (square.type.equals("=")) {
-					total += 1;
-				} else if (square.type.equals("|")) {
-					total += 2;
-				}
-			}
-		}
-		return total;
-	}
-
-	private static void print_map(List<List<Square>> map) {
-		for (int yndex = 0; yndex < height; yndex++) {
-			String line = "";
-			for (int xndex = 0; xndex < width; xndex++) {
-				if (xndex == 0 && yndex == 0) {
-					line += "M";
-				} else if (xndex == target_x && yndex == target_y) {
-					line += "T";
-				} else {
-					line += map.get(yndex).get(xndex).type;
-				}
-			}
-			System.out.println(line);
-		}
-		System.out.println("\n");
-	}
-
-	private static void apply_basic_rules(Square square, int x, int y) {
-		boolean applied = false;
-		if (x == 0 && y == 0) {
-			square.geoIndex = 0l;
-			applied = true;
-		} else if (x == target_x && y == target_y) {
-			square.geoIndex = 0l;
-			applied = true;
+    private static void print_map(List<List<Square>> map) {
+	for (int yndex = 0; yndex < height; yndex++) {
+	    String line = "";
+	    for (int xndex = 0; xndex < width; xndex++) {
+		if (xndex == 0 && yndex == 0) {
+		    line += "M";
+		} else if (xndex == target_x && yndex == target_y) {
+		    line += "T";
 		} else {
-			if (y == 0) {
-				square.geoIndex = _16807 * x;
-				applied = true;
-			}
-			if (x == 0) {
-				square.geoIndex = _48271 * y;
-				applied = true;
-			}
+		    line += map.get(yndex).get(xndex).type;
 		}
-		if (applied) {
-			square.erosionLevel = (square.geoIndex + _depth) % _20183;
-		}
+	    }
+	    System.out.println(line);
 	}
-	// answer: 10204
-}
+	System.out.println("\n");
+    }
 
-class ListSet {
-	public final List<Square> list;
-	public final Map<Coord, Integer> poss;
-	public final Set<Square> set;
-	public boolean valid, finished;
-
-	public ListSet() {
-		list = new ArrayList<Square>();
-		set = new HashSet<Square>();
-		poss = new HashMap<Coord, Integer>();
-		valid = true;
-		finished = false;
+    private static void apply_basic_rules(Square square, int x, int y) {
+	boolean applied = false;
+	if (x == 0 && y == 0) {
+	    square.geoIndex = 0l;
+	    applied = true;
+	} else if (x == target_x && y == target_y) {
+	    square.geoIndex = 0l;
+	    applied = true;
+	} else {
+	    if (y == 0) {
+		square.geoIndex = _16807 * x;
+		applied = true;
+	    }
+	    if (x == 0) {
+		square.geoIndex = _48271 * y;
+		applied = true;
+	    }
 	}
-
-	public Square last() {
-		if (list.size() > 0) {
-			return list.get(list.size() - 1);
-		}
-		return null;
+	if (applied) {
+	    square.erosionLevel = (square.geoIndex + _depth) % _20183;
 	}
-
-	public void add(Square t) {
-		Coord coord = new Coord(t.x, t.y);
-		poss.put(coord, list.size());
-		list.add(t);
-		set.add(t);
-	}
-
-	public boolean has(Square t) {
-		return set.contains(t);
-	}
+    }
+    // answer: 10204
 }
 
 class Square {
-	public final int x, y;
-	public String type;
-	public long erosionLevel, geoIndex;
+    public final int x, y, tool;
+    public String type;
+    public long erosionLevel, geoIndex;
+    public String path;
 
-	@Override
-	public String toString() {
-		return "( " + x + ", " + y + ", " + type + ", " + cost + ")";
+    @Override
+    public String toString() {
+	return "( " + x + ", " + y + ", tool: " + tool + " type: " + type + ", " + cost + ")";
+    }
+
+    public int cost;
+
+    public Square(int xx, int yy, int tt) {
+	x = xx;
+	y = yy;
+	cost = -1;
+	tool = tt;
+	type = null;
+	path = " ";
+    }
+
+    public boolean isPossible() {
+	if (".".equals(type) && tool == TOOL.NEITHER) {
+	    return false;
 	}
-
-	public int cost;
-
-	public Square(int xx, int yy) {
-		x = xx;
-		y = yy;
-		cost = -1;
+	if ("=".equals(type) && tool == TOOL.TORCH) {
+	    return false;
 	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 34543;
-		int result = 1;
-		result = prime * result + x;
-		result = prime * result + y;
-		return result;
+	if ("|".equals(type) && tool == TOOL.CLIMB) {
+	    return false;
 	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Square other = (Square) obj;
-		if (x != other.x)
-			return false;
-		if (y != other.y)
-			return false;
-		return true;
+	if (type == null) {
+	    return false;
 	}
+	return true;
+    }
+
+    @Override
+    public int hashCode() {
+	final int prime = 34313;
+	int result = 1;
+	result = prime * result + tool;
+	result = prime * result + x;
+	result = prime * result + y;
+	return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+	if (this == obj)
+	    return true;
+	if (obj == null)
+	    return false;
+	if (getClass() != obj.getClass())
+	    return false;
+	Square other = (Square) obj;
+	if (tool != other.tool)
+	    return false;
+	if (x != other.x)
+	    return false;
+	if (y != other.y)
+	    return false;
+	return true;
+    }
+
+}
+
+interface TOOL {
+    public static final int TORCH = 0, CLIMB = 1, NEITHER = 2;
 }

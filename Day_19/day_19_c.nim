@@ -5,7 +5,7 @@ type Line = object
     opcode: string
     a, b, c: int
 
-var register = @[0,0,0,0,0,0]
+var register = @[1,0,0,0,0,0]
 
 proc addr(data: Line) {.inline.} =
     let temp = register[data.a] + register[data.b]
